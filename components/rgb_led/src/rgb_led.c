@@ -20,6 +20,10 @@
 #include "nvs_funcs.h"
 #include "keymap.h"
 
+#include "esp_system.h"
+#include "esp_sleep.h"
+#include "esp_timer.h"
+
 static const char *TAG = "RGB_LEDs";
 
 led_strip_t *rgb_key;
@@ -147,12 +151,16 @@ void rgb_key_led_press(uint8_t row, uint8_t col)
     rgb_key_status[key].v = 100;
 }
 
+static uint32_t millis() {
+	return esp_timer_get_time() / 1000;
+}
+
 void key_led_modes(void)
 {
     rgb_mode_t led_mode;
-    char led_status[16] = {0};
-    char led_counter[16] = {0};
-    char led_total_secs[16] = {0};
+    uint8_t led_status[16] = {0};
+    uint32_t led_counter[16] = {0};
+    uint32_t led_total_secs[16] = {0};
 
     while (true)
     {
@@ -161,8 +169,8 @@ void key_led_modes(void)
             ESP_LOGI(TAG, "Received message from Q");
             ESP_LOGI(TAG,"Received: pos: %d, secs: %d",led_mode.pos, led_mode.secs);
 
-            led_total_secs[led_mode.pos] = led_mode.secs*100;
-            led_counter[led_mode.pos] = led_mode.secs*100;
+            led_total_secs[led_mode.pos] = led_mode.secs*100; // number multiply for 100ms
+            led_counter[led_mode.pos] = millis();
             led_status[led_mode.pos] = 0;
         }
         
@@ -170,9 +178,10 @@ void key_led_modes(void)
         {
             if(led_total_secs[i] > 0) //Check if blink is active 
             {
-                led_counter[i]--;
-                if(led_counter[i]==0)
+                if(millis() - led_counter[i] > led_total_secs[i])
                 {
+                    led_counter[i] = millis();
+
                     if(led_status[i])
                     {
                         rgb_key->set_pixel(rgb_key, i,0, 0, 0);
@@ -183,12 +192,11 @@ void key_led_modes(void)
                         rgb_key->set_pixel(rgb_key, i,100, 100, 100);
                         led_status[i] = 1;
                     }
-
-                    led_counter[i] = led_total_secs[i];
                 }
             }
         }
         rgb_key->refresh(rgb_key, 100);
-        vTaskDelay(pdMS_TO_TICKS(10));
+        
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }

@@ -84,6 +84,11 @@
 #include "esp_console.h"
 #include "driver/uart.h"
 
+#include "esp_system.h"
+
+#include "esp_sleep.h"
+#include "esp_timer.h"
+
 
 
 uint8_t check_blink(char * string, uint8_t * pos, uint8_t * time)
